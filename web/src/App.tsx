@@ -1,4 +1,3 @@
-import { GameController, MagnifyingGlassPlus } from 'phosphor-react'
 import * as Dialog from '@radix-ui/react-dialog'
 
 import './styles/main.css';
@@ -6,7 +5,6 @@ import logoImg from './assets/logo-nlw-esports.svg'
 import { GameBanner } from './components/GameBanner';
 import { CreateAdBanner } from './components/CreateAdBanner';
 import { useEffect, useState } from 'react';
-import { Input } from './components/Form/Input';
 import { CreateAdModal } from './components/CreateAdModal';
 import axios from 'axios';
 

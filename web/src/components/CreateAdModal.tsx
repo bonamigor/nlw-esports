@@ -1,17 +1,31 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import * as ToggleGroup from '@radix-ui/react-toggle-group'
-import { Check, GameController } from 'phosphor-react'
+import * as Select from '@radix-ui/react-select';
+import { Check, GameController, ArrowDown, ArrowUp } from 'phosphor-react'
 import { Input } from './Form/Input'
-import { FormEvent, useEffect, useState, } from 'react'
+import { useEffect, useState, } from 'react'
 import axios from 'axios'
+import { Controller, useForm } from 'react-hook-form';
 
 interface Game {
   id: string;
   title: string;
 }
 
+interface Ad {
+  game: string;
+  discord: string;
+  hourStart: string;
+  hourEnd: string;
+  name: string;
+  useVoiceChannel: boolean;
+  weekDays: string[];
+  yearsPlaying: number;
+}
+
 export function CreateAdModal () {
+  const { handleSubmit, control } = useForm<Ad>()
   const [games, setGames] = useState<Game[]>([])
   const [weekDays, setWeekDays] = useState<string[]>([])
   const [useVoiceChannel, setUseVoiceChannel] = useState(false)
@@ -20,30 +34,18 @@ export function CreateAdModal () {
     axios.get('http://localhost:3333/games')
       .then(response => { setGames(response.data) })
   }, [])
-
-  async function handleCreateAd(event: FormEvent) {
-    event.preventDefault()
-
-    const formData = new FormData(event.target as HTMLFormElement)
-    const data = Object.fromEntries(formData)
-
-    // Validação
-    if (!data.name) {
-      return;
-    }
-
+window.location.reload();
+  async function handleOnSubmit(data: Ad) {
     try {
       await axios.post(`http://localhost:3333/games/${data.game}/ads`,{
-        name: data.name,
+        ...data,
         yearsPlaying: Number(data.yearsPlaying),
-        discord: data.discord,
         weekDays: weekDays.map(Number),
-        hourStart: data.hourStart,
-        hourEnd: data.hourEnd,
         useVoiceChannel: useVoiceChannel
       })
-
       alert('Anúncio criado com sucesso!')
+      
+      window.location.reload();
     } catch (error) {
       console.log(error)
       alert('Erro ao criar o anúncio.')
@@ -57,30 +59,108 @@ export function CreateAdModal () {
     <Dialog.Content className="fixed bg-[#2A2634] py-8 px-10 text-white top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg w-[480px] shadow-lg shadow-black/25" >
       <Dialog.Title className="text-3xl font-black">Publique um anúncio</Dialog.Title>
 
-      <form onSubmit={handleCreateAd} className="mt-8 flex flex-col gap-4">
+      <form onSubmit={handleSubmit(handleOnSubmit)} className="mt-8 flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <label htmlFor="game" className="font-semibold">Qual o game?</label>
-          <select id="game" name="game" className="bg-zinc-900 py-3 px-4 rounded text-small placeholder:text-zinc-500 appearance-none">
-            <option disabled defaultValue="" value="">Selecione o game que deseja jogar</option>
-            { games.map(game => {
-              return (
-                <option key={game.id} value={game.id}>{ game.title }</option>
-              )
-            }) }
-          </select>
+          <Controller
+            name="game"
+            control={control}
+            rules={{ required: true }}
+            render={({field}) => 
+                <Select.Root onValueChange={field.onChange}>
+                  <Select.SelectTrigger className="flex flex-row items-center justify-between bg-zinc-900 py-3 px-4 rounded text-small placeholder:text-zinc-500" >
+                    <Select.Value placeholder="Selecione o game que deseja jogar" />
+                    <Select.Icon>
+                      <ArrowDown size={20} />
+                    </Select.Icon>
+                  </Select.SelectTrigger>
+                  <Select.Portal>
+                    <Select.Content className="overflow-hidden relative bg-zinc-900 py-3 px-4 rounded text-small text-white placeholder:text-zinc-500" >
+                      <Select.ScrollUpButton>
+                        <ArrowUp size={20} />
+                      </Select.ScrollUpButton>
+                        <Select.Viewport>
+                          { games.map(game => {
+                            return (
+                              <Select.Item id="game" key={game.id} value={game.id}>
+                                <Select.ItemText>{ game.title }</Select.ItemText>
+                              </Select.Item>
+                            )
+                          }) }
+                        </Select.Viewport>
+                      <Select.ScrollDownButton />
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
+            }
+          />
         </div>
         <div className="flex flex-col gap-2">
           <label htmlFor="name">Seu nome (ou nickname)</label>
-          <Input id="name" name="name" placeholder="Como te chamam dentro do game?" />
+          <Controller
+            name="name"
+            control={control}
+            rules={{ required: "Campo obrigatório." }}
+            render={({ field, fieldState }) => 
+              <Input 
+                name={field.name} 
+                value={field.value} 
+                onChange={field.onChange} 
+                error={fieldState.error}
+                placeholder="Como te chamam dentro do game?" 
+              />
+            }
+          />
         </div>
         <div className="grid grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label htmlFor="yearsPlaying">Joga há quantos anos?</label>
-            <Input id="yearsPlaying" name="yearsPlaying" type="number" placeholder="Tudo bem ser ZERO" />
+            <Controller 
+              name="yearsPlaying"
+              control={control}
+              rules={{
+                required: "Campo obrigatório",
+                min: {
+                  value: 0,
+                  message: "Insira um valor válido"
+                },
+                max: {
+                  value: 100,
+                  message: "Insira um valor válido"
+                },
+              }}
+              render={({ field, fieldState}) => (
+                <Input 
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  type="number" 
+                  placeholder="Tudo bem ser ZERO"
+                  error={fieldState.error}
+                />
+              )}
+            />
+            
           </div>
           <div className="flex flex-col gap-2">
             <label htmlFor="discord">Qual seu Discord?</label>
-            <Input id="discord" name="discord" type="text" placeholder="Usuário#000" />
+            <Controller 
+              name="discord"
+              control={control}
+              rules={{
+                required: "Campo obrigatório",
+                validate: (val) => /.*[^# ]#[0-9]{4}/i.test(val) || "Informe um ID válido",
+              }}
+              render={({ field, fieldState}) => (
+                <Input 
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Usuário#000"
+                  error={fieldState.error}
+                />
+              )}
+            />
           </div>
         </div>
         <div className="flex gap-6">
@@ -142,8 +222,42 @@ export function CreateAdModal () {
           <div className="flex flex-col gap-2 flex-1">
             <label htmlFor="hourStart">Qual horário do dia</label>
             <div className="grid grid-cols-2 gap-2">
-              <Input type="time" id="hourStart" name="hourStart" placeholder="De" />
-              <Input type="time" id="hourEnd" name="hourEnd" placeholder="Até" />
+            <Controller 
+              name="hourStart"
+              control={control}
+              rules={{
+                required: "Campo obrigatório",
+                deps: "hourEnd"
+              }}
+              render={({ field, fieldState}) => (
+                <Input 
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="De"
+                  type="time"
+                  error={fieldState.error}
+                />
+              )}
+            />
+            <Controller 
+              name="hourEnd"
+              control={control}
+              rules={{
+                required: "Campo obrigatório",
+                deps: "hourStart"
+              }}
+              render={({ field, fieldState}) => (
+                <Input 
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Até"
+                  type="time"
+                  error={fieldState.error}
+                />
+              )}
+            />
             </div>
           </div>
         </div>
